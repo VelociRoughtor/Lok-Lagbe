@@ -13,8 +13,7 @@ export default function Index() {
         gap: 20,
       }}
     >
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-      <Button title="Go to Clean Page" onPress={() => router.push("/Home/clean")} />
+      <Button title="Go to Home Page" onPress={() => router.push("/Home/(tabs)")} />
     </View>
   );
 }

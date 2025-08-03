@@ -1,8 +1,16 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { Dimensions, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Dimensions,
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-// Remove color palette and use direct color values
 const categories = [
   { name: 'Cleaning', icon: 'broom' },
   { name: 'Plumbing', icon: 'pipe-wrench' },
@@ -33,6 +41,16 @@ const horizontalMargin = 6;
 const cardWidth = (width - 2 * 16 - (numColumns * 2 * horizontalMargin)) / numColumns;
 
 export default function HomeScreen() {
+  const router = useRouter();
+
+  const handleCategoryPress = (category) => {
+    if (category.name === 'Cleaning') {
+      router.push('/Home/clean');
+    } else {
+      console.log('Pressed:', category.name);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -45,20 +63,32 @@ export default function HomeScreen() {
             <MaterialCommunityIcons name="bell-outline" size={28} color="#ff6347" />
           </TouchableOpacity>
         </View>
+
         <Text style={styles.categoriesHeading}>Categories</Text>
+
         <FlatList
           data={categories}
-          keyExtractor={item => item.name}
+          keyExtractor={(item) => item.name}
           numColumns={numColumns}
           contentContainerStyle={styles.categoryGrid}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.categoryCard} activeOpacity={0.85}>
-              <MaterialCommunityIcons name={item.icon} size={26} color="#ff6347" style={{ marginBottom: 6 }} />
+            <TouchableOpacity
+              style={styles.categoryCard}
+              activeOpacity={0.85}
+              onPress={() => handleCategoryPress(item)}
+            >
+              <MaterialCommunityIcons
+                name={item.icon}
+                size={26}
+                color="#ff6347"
+                style={{ marginBottom: 6 }}
+              />
               <Text style={styles.categoryText}>{item.name}</Text>
             </TouchableOpacity>
           )}
           showsVerticalScrollIndicator={false}
         />
+
         <View style={styles.postBtnWrap}>
           <TouchableOpacity style={styles.postBtn} activeOpacity={0.9}>
             <Text style={styles.postBtnText}>Post your work</Text>
