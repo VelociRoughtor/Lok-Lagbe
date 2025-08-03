@@ -14,7 +14,7 @@ export default function Index() {
       }}
     >
       <Text>Edit app/index.tsx to edit this screen.</Text>
-      <Button title="Go to Clean Page" onPress={() => router.push("/clean")} />
+      <Button title="Go to Clean Page" onPress={() => router.push("/Home/clean")} />
     </View>
   );
 }
