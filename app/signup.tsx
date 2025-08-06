@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { View,Linking, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { GoogleAuthProvider, getAuth, signInWithPopup } from 'firebase/auth';
-import { app, auth } from '../firebaseConfig';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { app } from './config/config';
 import { Link, router } from 'expo-router';
 
 const SignUp: React.FC = () => {
@@ -10,7 +9,7 @@ const SignUp: React.FC = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    nid:'',
+    nid: '',
     phone: '',
     email: '',
     password: '',
@@ -22,13 +21,14 @@ const SignUp: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.nid || !formData.email || !formData.password || !formData.name) {
-        Alert.alert('Error', 'Please fill in all required fields');
-    return;
+    if (!formData.name || !formData.nid || !formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
     }
+
     if (formData.password.length < 6) {
-        Alert.alert('Error', 'Password must be at least 6 characters long');
-        return;
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
     }
 
     setLoading(true);
@@ -49,17 +49,6 @@ const SignUp: React.FC = () => {
     }
   };
 
-//   const SignInWithGoogle = async () => {
-//     const provider = new GoogleAuthProvider();
-//     try {
-//       await signInWithPopup(auth, provider);
-//       Alert.alert('Success', 'Google Sign-In successful!');
-//     } catch (error: any) {
-//       console.log('Google Sign-In error:', error);
-//       Alert.alert('Google Sign-In Error', error.message);
-//     }
-//   };
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -74,13 +63,13 @@ const SignUp: React.FC = () => {
           value={formData.name}
           onChangeText={(text) => handleChange('name', text)}
         />
-        
+
         <TextInput
           style={styles.input}
-            placeholder="NID No.  "
-            keyboardType="phone-pad"
-            value={formData.nid}
-            onChangeText={(text) => handleChange('nid', text)}
+          placeholder="NID No."
+          keyboardType="number-pad"
+          value={formData.nid}
+          onChangeText={(text) => handleChange('nid', text)}
         />
 
         <TextInput
@@ -109,23 +98,16 @@ const SignUp: React.FC = () => {
         />
 
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-            <Text style={styles.buttonText}>
+          <Text style={styles.buttonText}>
             {loading ? 'Creating...' : 'Create Account'}
-            </Text>
+          </Text>
         </TouchableOpacity>
 
-        
-        
-
-        {/* <TouchableOpacity style={styles.button} onPress={SignInWithGoogle}>
-          <Text style={styles.buttonText}>Sign in with Google</Text>
-        </TouchableOpacity> */}
-
-        <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 20 }}>
-          <Text style={{ color: 'black', fontSize: 16 }}>
+        <View style={styles.loginLink}>
+          <Text style={styles.loginText}>
             If you already have an account, please
           </Text>
-          <Link href="/login" style={{ fontWeight: 'bold', color: '#146C94', fontSize: 16, marginLeft: 4 }}>
+          <Link href="/login" style={styles.loginLinkText}>
             Log In.
           </Link>
         </View>
@@ -145,13 +127,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: 'D7D7D7',
+    backgroundColor: '#D7D7D7',
     padding: 24,
     borderRadius: 16,
     width: '100%',
     maxWidth: 400,
     elevation: 5,
-    boxShadow: '0 10px 10px rgba(0, 0, 0, 0.5)',
   },
   title: {
     fontSize: 24,
@@ -182,5 +163,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  loginLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  loginText: {
+    color: 'black',
+    fontSize: 16,
+  },
+  loginLinkText: {
+    fontWeight: 'bold',
+    color: '#146C94',
+    fontSize: 16,
+    marginLeft: 4,
+  },
 });
-
