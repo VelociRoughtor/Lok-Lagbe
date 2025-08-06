@@ -1,186 +1,212 @@
 import React, { useState } from 'react';
-import { View,Linking, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { GoogleAuthProvider, getAuth, signInWithPopup } from 'firebase/auth';
-import { app, auth } from '../firebaseConfig';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Link, router } from 'expo-router';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../firebaseConfig';
 
-const SignUp: React.FC = () => {
-  const auth = getAuth(app);
+export default function SignUpScreen() {
+  const [fullName, setFullName] = useState('');
+  const [nid, setNid] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  const [formData, setFormData] = useState({
-    name: '',
-    nid:'',
-    phone: '',
-    email: '',
-    password: '',
-  });
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (key: keyof typeof formData, value: string) => {
-    setFormData({ ...formData, [key]: value });
-  };
+  const handleSignUp = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
 
-  const handleSubmit = async () => {
-    if (!formData.nid || !formData.email || !formData.password || !formData.name) {
-        Alert.alert('Error', 'Please fill in all required fields');
-    return;
+    if (!fullName || !nid || !phone || !email || !password) {
+      setErrorMsg('⚠️ Please fill in all required fields.');
+      return;
     }
-    if (formData.password.length < 6) {
-        Alert.alert('Error', 'Password must be at least 6 characters long');
-        return;
+
+    if (password.length < 6) {
+      setErrorMsg('⚠️ Password must be at least 6 characters long.');
+      return;
     }
 
     setLoading(true);
+
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-      await updateProfile(userCredential.user, { displayName: formData.name });
-      Alert.alert('Success', 'Account created successfully!');
-      router.replace('/login'); // Navigate to login page
-    } catch (error: any) {
-      console.log('Firebase error:', error);
-      Alert.alert('Sign Up Error', error.message);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await updateProfile(user, {
+        displayName: fullName,
+      });
+
+      // Save user details in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        fullName,
+        nid,
+        phone,
+        email,
+        createdAt: serverTimestamp(),
+        work: [],
+        acceptedWorks: [], // ← ADDED: Empty array for accepted works
+      });
+
+      setSuccessMsg(`✅ Account created successfully for ${user.email}`);
+
+      setTimeout(() => {
+        router.replace('/login');
+      }, 1500);
+    } catch (error) {
+      let message = 'An unknown error occurred.';
+      if (error instanceof Error) message = error.message;
+      setErrorMsg(`❌ ${message}`);
     } finally {
       setLoading(false);
     }
   };
 
-//   const SignInWithGoogle = async () => {
-//     const provider = new GoogleAuthProvider();
-//     try {
-//       await signInWithPopup(auth, provider);
-//       Alert.alert('Success', 'Google Sign-In successful!');
-//     } catch (error: any) {
-//       console.log('Google Sign-In error:', error);
-//       Alert.alert('Google Sign-In Error', error.message);
-//     }
-//   };
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.card}>
-        <Text style={styles.title}>Sign Up</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Create Account</Text>
+      <Text style={styles.subtitle}>Join us by filling in your details</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Full Name"
-          value={formData.name}
-          onChangeText={(text) => handleChange('name', text)}
-        />
-        
-        <TextInput
-          style={styles.input}
-            placeholder="NID No.  "
-            keyboardType="phone-pad"
-            value={formData.nid}
-            onChangeText={(text) => handleChange('nid', text)}
-        />
+      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+      {successMsg ? <Text style={styles.successText}>{successMsg}</Text> : null}
 
-        <TextInput
-          style={styles.input}
-          placeholder="Phone Number"
-          keyboardType="phone-pad"
-          value={formData.phone}
-          onChangeText={(text) => handleChange('phone', text)}
-        />
+      <TextInput
+        placeholder="Full Name"
+        placeholderTextColor="#8b8686"
+        value={fullName}
+        onChangeText={setFullName}
+        style={styles.input}
+      />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email Address"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={formData.email}
-          onChangeText={(text) => handleChange('email', text)}
-        />
+      <TextInput
+        placeholder="NID Number"
+        placeholderTextColor="#8b8686"
+        value={nid}
+        onChangeText={setNid}
+        style={styles.input}
+        keyboardType="number-pad"
+      />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          secureTextEntry
-          value={formData.password}
-          onChangeText={(text) => handleChange('password', text)}
-        />
+      <TextInput
+        placeholder="Phone Number"
+        placeholderTextColor="#8b8686"
+        value={phone}
+        onChangeText={setPhone}
+        style={styles.input}
+        keyboardType="phone-pad"
+      />
 
-        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-            <Text style={styles.buttonText}>
-            {loading ? 'Creating...' : 'Create Account'}
-            </Text>
-        </TouchableOpacity>
+      <TextInput
+        placeholder="Email"
+        placeholderTextColor="#8b8686"
+        value={email}
+        onChangeText={setEmail}
+        style={styles.input}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
 
-        
-        
+      <TextInput
+        placeholder="Password"
+        placeholderTextColor="#8b8686"
+        value={password}
+        onChangeText={setPassword}
+        style={styles.input}
+        secureTextEntry
+      />
 
-        {/* <TouchableOpacity style={styles.button} onPress={SignInWithGoogle}>
-          <Text style={styles.buttonText}>Sign in with Google</Text>
-        </TouchableOpacity> */}
+      <TouchableOpacity
+        style={[styles.button, loading ? styles.buttonDisabled : {}]}
+        onPress={handleSignUp}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>
+          {loading ? 'Signing Up...' : 'Sign Up'}
+        </Text>
+      </TouchableOpacity>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 20 }}>
-          <Text style={{ color: 'black', fontSize: 16 }}>
-            If you already have an account, please
-          </Text>
-          <Link href="/login" style={{ fontWeight: 'bold', color: '#146C94', fontSize: 16, marginLeft: 4 }}>
-            Log In.
-          </Link>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+      <Text style={styles.linkText}>
+        Already have an account?{' '}
+        <Link href="/login" style={styles.link}>
+          Sign In
+        </Link>
+      </Text>
+    </View>
   );
-};
-
-export default SignUp;
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
-    alignItems: 'center',
+    backgroundColor: '#fff',
     justifyContent: 'center',
-    padding: 16,
-  },
-  card: {
-    backgroundColor: 'D7D7D7',
     padding: 24,
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 400,
-    elevation: 5,
-    boxShadow: '0 10px 10px rgba(0, 0, 0, 0.5)',
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: 'bold',
-    color: '#146C94',
     textAlign: 'center',
-    marginBottom: 24,
+    color: '#146C94',
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 15,
+    textAlign: 'center',
+    color: '#544d4d',
+    marginBottom: 25,
   },
   input: {
+    height: 50,
+    borderColor: '#146C94',
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    marginBottom: 16,
-    backgroundColor: '#f9f9f9',
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    backgroundColor: '#fff',
+    color: '#544d4d',
   },
   button: {
     backgroundColor: '#146C94',
-    paddingVertical: 12,
+    paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 8,
+    elevation: 2,
+    marginTop: 5,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#636060',
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: '#eceefc',
+    fontSize: 17,
     fontWeight: '600',
   },
+  linkText: {
+    marginTop: 25,
+    textAlign: 'center',
+    color: '#544d4d',
+    fontSize: 16,
+  },
+  link: {
+    color: '#146C94',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  errorText: {
+    color: '#b91c1c',
+    marginBottom: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  successText: {
+    color: '#3a6e00',
+    marginBottom: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });
-

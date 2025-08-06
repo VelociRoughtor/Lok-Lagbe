@@ -1,28 +1,49 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { Link, router } from 'expo-router';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebaseConfig'; // adjust the path if needed
 
 const LogIn: React.FC = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (key: keyof typeof formData, value: string) => {
     setFormData({ ...formData, [key]: value });
+    setErrorMsg('');
   };
 
-  const handleSubmit = () => {
-  const { email, password } = formData;
+  const handleSubmit = async () => {
+    const { email, password } = formData;
 
-  if (!email.trim() || !password.trim()) {
-    alert('Please enter both email and password.');
-    return;
-  }
+    if (!email.trim() || !password.trim()) {
+      setErrorMsg('⚠️ Please enter both email and password.');
+      return;
+    }
 
-  console.log('Submitted data:', formData);
-    console.log('Submitted data:', formData);
-    router.replace('/Home'); 
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      setErrorMsg('');
+      router.replace('/Home');
+    } catch (error: any) {
+      console.error('Login error:', error.message);
+      setErrorMsg('❌ Invalid credentials. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -32,6 +53,8 @@ const LogIn: React.FC = () => {
     >
       <View style={styles.card}>
         <Text style={styles.title}>Log In</Text>
+
+        {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
         <TextInput
           style={styles.input}
@@ -50,16 +73,25 @@ const LogIn: React.FC = () => {
           onChangeText={(text) => handleChange('password', text)}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>Log In</Text>
+        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Log In'}</Text>
         </TouchableOpacity>
-        {/* Replace navigation with Link for Expo Router */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 20}}>
-          <Text style={{ color: 'black', fontSize: 16}}>
-            If you don't have an account, please</Text>
-            <Link href="/signup" style={{ fontWeight: 'bold', color: '#146C94', fontSize: 16, marginLeft: 4 }}>
-                Register.
-            </Link>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 20 }}>
+          <Text style={{ color: 'black', fontSize: 16 }}>
+            If you don&apos;t have an account, please
+          </Text>
+          <Link
+            href="/signup"
+            style={{
+              fontWeight: 'bold',
+              color: '#146C94',
+              fontSize: 16,
+              marginLeft: 4,
+            }}
+          >
+            Register.
+          </Link>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -83,10 +115,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     boxShadow: '0 2px 10px rgba(0, 0, 0, 0.6)',
-    // shadowColor: '#000',
-    // shadowOpacity: 0.1,
-    // shadowRadius: 10,
-    // shadowOffset: { width: 0, height: 2 },
   },
   title: {
     fontSize: 24,
@@ -117,5 +145,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  errorText: {
+    color: '#b91c1c',
+    marginBottom: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });
-

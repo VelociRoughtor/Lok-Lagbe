@@ -3,349 +3,257 @@ import {
   View,
   Text,
   TextInput,
-  ScrollView,
-  Button,
-  StyleSheet,
   TouchableOpacity,
-  Image,
+  StyleSheet,
+  Alert,
+  Platform,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { Picker } from '@react-native-picker/picker';
-import DateTimePicker, { Event } from '@react-native-community/datetimepicker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { collection, doc, setDoc, Timestamp, updateDoc, arrayUnion } from 'firebase/firestore';
+import { db, auth } from '../firebaseConfig';
 import { useRouter } from 'expo-router';
+import { Picker } from '@react-native-picker/picker';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const categories = [
-  'Cleaning',
-  'Plumbing',
-  'Electrician',
-  'Carpentry',
-  'Painting',
-  'Gardening',
-  'Moving',
-  'Cooking',
-  'Babysitting',
-  'Laundry',
-  'AC Repair',
-  'Pest Control',
-  'Beauty',
-  'Car Wash',
-  'Computer Repair',
-  'Mobile Repair',
-  'Tutoring',
-  'Photography',
-  'Event Planning',
-  'Security',
-  'Other',
+  'Cleaning', 'Plumbing', 'Electrician', 'Carpentry', 'Painting',
+  'Gardening', 'Moving', 'Cooking', 'Babysitting', 'Laundry',
+  'AC Repair', 'Pest Control', 'Beauty', 'Car Wash', 'Computer Repair',
+  'Mobile Repair', 'Tutoring', 'Photography', 'Event Planning', 'Security', 'Other',
 ];
 
-export default function PostYourWorkScreen() {
+export default function PostWorkScreen() {
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const [jobTitle, setJobTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [location, setLocation] = useState('');
+  const [category, setCategory] = useState(categories[0]);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date());
-
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
-  const [money, setMoney] = useState('');
-  const [location, setLocation] = useState('');
-  const [images, setImages] = useState<{ uri: string }[]>([]);
-  const [category, setCategory] = useState(categories[0]);
-
-  const [jobTitleError, setJobTitleError] = useState(false);
-  const [descriptionError, setDescriptionError] = useState(false);
-  const [moneyError, setMoneyError] = useState(false);
-  const [locationError, setLocationError] = useState(false);
-
-  const pickImages = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 1,
+  // Check auth state when component mounts
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+      } else {
+        router.replace('/Home/(tabs)'); // Redirect to auth if not logged in
+      }
     });
+    return unsubscribe;
+  }, []);
 
-    if (!result.canceled) {
-      setImages([...images, ...result.assets]);
-    }
-  };
-
-  const onSubmit = () => {
-    setJobTitleError(false);
-    setDescriptionError(false);
-    setMoneyError(false);
-    setLocationError(false);
-
-    let hasError = false;
-
-    if (!jobTitle.trim()) {
-      setJobTitleError(true);
-      hasError = true;
-    }
-    if (!description.trim()) {
-      setDescriptionError(true);
-      hasError = true;
-    }
-    if (endDate < startDate || (endDate.getTime() === startDate.getTime() && endTime < startTime)) {
-      alert('End date/time cannot be before start date/time');
+  const handlePostWork = async () => {
+    if (!currentUser) {
+      Alert.alert('Error', 'You must be logged in to post work.');
       return;
     }
-    if (!money.trim()) {
-      setMoneyError(true);
-      hasError = true;
-    }
-    if (!location.trim()) {
-      setLocationError(true);
-      hasError = true;
+
+    if (!jobTitle || !description || !price || !location) {
+      Alert.alert('Error', 'All fields are required.');
+      return;
     }
 
-    if (hasError) return;
+    try {
+      // Normalize dates to start of day
+      const normalizedStartDate = new Date(startDate);
+      normalizedStartDate.setHours(0, 0, 0, 0);
+      
+      const normalizedEndDate = new Date(endDate);
+      normalizedEndDate.setHours(0, 0, 0, 0);
 
-    const postData = {
-      jobTitle,
-      description,
-      startDateTime: combineDateTime(startDate, startTime),
-      endDateTime: combineDateTime(endDate, endTime),
-      money,
-      location,
-      images,
-      category,
-    };
+      // Create document reference
+      const workRef = doc(collection(db, 'worked'));
 
-    console.log('Post data:', postData);
+      // Work data to be saved
+      const workData = {
+        workId: workRef.id,
+        userId: currentUser.uid, // User who posted the work
+        jobTitle: jobTitle.trim(),
+        description: description.trim(),
+        price: Number(price),
+        location: location.trim(),
+        category,
+        startDate: Timestamp.fromDate(normalizedStartDate),
+        endDate: Timestamp.fromDate(normalizedEndDate),
+        createdAt: Timestamp.now(),
+        status: 'active',
+        acceptedBy: null, // Initially empty, will store UID of accepting user
+        acceptedAt: null, // Initially empty, will store timestamp when accepted
+      };
 
-    alert('Job posted successfully!');
-    router.back();
+      // Save to worked collection
+      await setDoc(workRef, workData);
+
+      // Add to user's subcollection
+      const userWorkRef = doc(db, 'users', currentUser.uid, 'postedWorks', workRef.id);
+      await setDoc(userWorkRef, {
+        workId: workRef.id,
+        postedAt: Timestamp.now(),
+        status: 'active',
+      });
+
+      // Also update user's document with this work reference
+      const userRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userRef, {
+        postedWorks: arrayUnion(workRef.id),
+      });
+
+      Alert.alert('Success', 'Work posted successfully!');
+      router.replace('/Home/(tabs)'); // Navigate to home page
+    } catch (err) {
+      console.error('Error posting work:', err);
+      Alert.alert('Error', 'Something went wrong.');
+    }
   };
-
-  const combineDateTime = (date: Date, time: Date) => {
-    const dt = new Date(date);
-    dt.setHours(time.getHours());
-    dt.setMinutes(time.getMinutes());
-    return dt;
-  };
-
-  const formatTime = (time: Date) =>
-    time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.header}>Job Title</Text>
+    <View style={styles.container}>
+      <Text style={styles.heading}>Post Your Work</Text>
+
       <TextInput
-        style={[styles.input, jobTitleError && styles.inputError]}
-        placeholder="Enter job title"
+        placeholder="Job Title"
+        placeholderTextColor="#636060"
         value={jobTitle}
         onChangeText={setJobTitle}
+        style={styles.input}
       />
-      {jobTitleError && <Text style={styles.errorText}>Job title is required</Text>}
 
-      <Text style={styles.label}>Description</Text>
       <TextInput
-        style={[styles.input, styles.multilineInput, descriptionError && styles.inputError]}
-        placeholder="Enter job description"
+        placeholder="Description"
+        placeholderTextColor="#636060"
         value={description}
         onChangeText={setDescription}
         multiline
-        numberOfLines={5}
+        numberOfLines={4}
+        style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
       />
-      {descriptionError && <Text style={styles.errorText}>Description is required</Text>}
 
-      <Text style={styles.label}>Date and Time</Text>
-      <View style={styles.dateRow}>
-        <TouchableOpacity
-          style={styles.datePickerButton}
-          onPress={() => setShowStartDatePicker(true)}
-        >
-          <Text>From: {startDate.toDateString()}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.datePickerButton}
-          onPress={() => setShowEndDatePicker(true)}
-        >
-          <Text>To: {endDate.toDateString()}</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.dateRow}>
-        <TouchableOpacity
-          style={styles.datePickerButton}
-          onPress={() => setShowStartTimePicker(true)}
-        >
-          <Text>Start Time: {formatTime(startTime)}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.datePickerButton}
-          onPress={() => setShowEndTimePicker(true)}
-        >
-          <Text>End Time: {formatTime(endTime)}</Text>
-        </TouchableOpacity>
-      </View>
+      <TextInput
+        placeholder="Price Offered"
+        placeholderTextColor="#636060"
+        value={price}
+        onChangeText={setPrice}
+        keyboardType="numeric"
+        style={styles.input}
+      />
+
+      <TextInput
+        placeholder="Location"
+        placeholderTextColor="#636060"
+        value={location}
+        onChangeText={setLocation}
+        style={styles.input}
+      />
+
+      {/* Start Date Picker */}
+      <TouchableOpacity 
+        style={styles.input} 
+        onPress={() => setShowStartDatePicker(true)}
+      >
+        <Text style={styles.dateText}>Start Date: {startDate.toDateString()}</Text>
+      </TouchableOpacity>
 
       {showStartDatePicker && (
         <DateTimePicker
           value={startDate}
           mode="date"
-          display="default"
-          onChange={(e, date) => {
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
             setShowStartDatePicker(false);
-            if (date) setStartDate(date);
+            if (selectedDate) setStartDate(selectedDate);
           }}
+          minimumDate={new Date()}
         />
       )}
+
+      {/* End Date Picker */}
+      <TouchableOpacity 
+        style={styles.input} 
+        onPress={() => setShowEndDatePicker(true)}
+      >
+        <Text style={styles.dateText}>End Date: {endDate.toDateString()}</Text>
+      </TouchableOpacity>
+
       {showEndDatePicker && (
         <DateTimePicker
           value={endDate}
           mode="date"
-          display="default"
-          onChange={(e, date) => {
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
             setShowEndDatePicker(false);
-            if (date) setEndDate(date);
+            if (selectedDate) setEndDate(selectedDate);
           }}
-        />
-      )}
-      {showStartTimePicker && (
-        <DateTimePicker
-          value={startTime}
-          mode="time"
-          is24Hour={false}
-          display="default"
-          onChange={(e, time) => {
-            setShowStartTimePicker(false);
-            if (time) setStartTime(time);
-          }}
-        />
-      )}
-      {showEndTimePicker && (
-        <DateTimePicker
-          value={endTime}
-          mode="time"
-          is24Hour={false}
-          display="default"
-          onChange={(e, time) => {
-            setShowEndTimePicker(false);
-            if (time) setEndTime(time);
-          }}
+          minimumDate={startDate}
         />
       )}
 
-      <Text style={styles.label}>Money Offered</Text>
-      <TextInput
-        style={[styles.input, moneyError && styles.inputError]}
-        placeholder="Enter amount"
-        value={money}
-        onChangeText={setMoney}
-        keyboardType="numeric"
-      />
-      {moneyError && <Text style={styles.errorText}>Money amount is required</Text>}
-
-      <Text style={styles.label}>Location</Text>
-      <TextInput
-        style={[styles.input, locationError && styles.inputError]}
-        placeholder="Enter location"
-        value={location}
-        onChangeText={setLocation}
-      />
-      {locationError && <Text style={styles.errorText}>Location is required</Text>}
-
-      <Text style={styles.label}>Images (optional)</Text>
-      <View style={styles.imageContainer}>
-        {images.map((img, i) => (
-          <Image key={i} source={{ uri: img.uri }} style={styles.image} />
-        ))}
-      </View>
-      <Button title="Pick Images" onPress={pickImages} />
-
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.pickerContainer}>
-        <Picker selectedValue={category} onValueChange={setCategory}>
+      {/* Category Picker */}
+      <View style={[styles.input, { paddingHorizontal: 0, justifyContent: 'center' }]}>
+        <Picker
+          selectedValue={category}
+          onValueChange={(itemValue) => setCategory(itemValue)}
+          style={{ color: '#544d4d' }}
+          dropdownIconColor="#3a125d"
+        >
           {categories.map((cat) => (
             <Picker.Item label={cat} value={cat} key={cat} />
           ))}
         </Picker>
       </View>
 
-      <View style={styles.submitButton}>
-        <Button title="Submit" onPress={onSubmit} />
-      </View>
-    </ScrollView>
+      <TouchableOpacity style={styles.button} onPress={handlePostWork}>
+        <Text style={styles.buttonText}>Post Work</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingBottom: 50,
-    backgroundColor: '#fff',
+    flex: 1,
+    padding: 24,
+    backgroundColor: '#eceefc',
   },
-  header: {
-    fontSize: 24,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 12,
-    color: '#222',
-  },
-  label: {
+  heading: {
+    fontSize: 22,
     fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 6,
-    color: '#444',
+    color: '#3a125d',
+    marginVertical: 20,
+    marginLeft: 10,
+    marginTop: 50,
   },
   input: {
+    height: 48,
+    borderColor: '#3a125d',
     borderWidth: 1,
-    borderColor: '#bbb',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    marginBottom: 12,
+    marginHorizontal: 10,
+    backgroundColor: '#fff',
+    color: '#544d4d',
+    justifyContent: 'center',
   },
-  multilineInput: {
-    height: 120,
-    textAlignVertical: 'top',
+  dateText: {
+    color: '#544d4d',
   },
-  inputError: {
-    borderColor: 'red',
+  button: {
+    marginTop: 20,
+    backgroundColor: '#3a125d',
+    paddingVertical: 14,
+    marginHorizontal: 10,
+    borderRadius: 10,
+    alignItems: 'center',
   },
-  errorText: {
-    color: 'red',
-    marginTop: 4,
-    fontSize: 13,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  datePickerButton: {
-    borderWidth: 1,
-    borderColor: '#bbb',
-    borderRadius: 8,
-    padding: 12,
-    width: '48%',
-  },
-  imageContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginVertical: 10,
-  },
-  image: {
-    width: 70,
-    height: 70,
-    marginRight: 10,
-    marginBottom: 10,
-    borderRadius: 8,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#bbb',
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  submitButton: {
-    marginTop: 30,
-    alignSelf: 'center',
-    width: '50%',
+  buttonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
   },
 });

@@ -90,11 +90,7 @@ export default function HomeScreen() {
         />
 
         <View style={styles.postBtnWrap}>
-          <TouchableOpacity
-            style={styles.postBtn}
-            activeOpacity={0.9}
-            onPress={() => router.push('/post-your-work')}
-          >
+          <TouchableOpacity style={styles.postBtn} activeOpacity={0.9}>
             <Text style={styles.postBtnText}>Post your work</Text>
           </TouchableOpacity>
         </View>
