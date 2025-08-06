@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { auth } from './config/config';  // Ensure correct path
+import { auth } from './config/config';  // Make sure this path is correct
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,8 +28,15 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.replace('/Home/(tabs)');  // Navigate to home tabs
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if (user.emailVerified) {
+        router.replace('/(tabs)');  // Navigate to home tabs
+      } else {
+        setError('Please verify your email before logging in.');
+        await auth.signOut(); // Optional: log out unverified user
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

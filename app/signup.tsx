@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { app } from './config/config';
-import { Link, router } from 'expo-router';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendEmailVerification,
+} from 'firebase/auth';
+import { auth } from './config/config'; // Your Firebase Auth instance
+import { router } from 'expo-router';
 
 const SignUp: React.FC = () => {
-  const auth = getAuth(app);
-
   const [formData, setFormData] = useState({
     name: '',
     nid: '',
@@ -39,10 +50,17 @@ const SignUp: React.FC = () => {
         formData.password
       );
       await updateProfile(userCredential.user, { displayName: formData.name });
-      Alert.alert('Success', 'Account created successfully!');
+
+      // Send verification email
+      await sendEmailVerification(userCredential.user);
+
+      Alert.alert(
+        'Success',
+        'Account created! Please check your email to verify your account before logging in.'
+      );
       router.replace('/login'); // Navigate to login page
     } catch (error: any) {
-      console.log('Firebase error:', error);
+      console.error('Firebase signup error:', error);
       Alert.alert('Sign Up Error', error.message);
     } finally {
       setLoading(false);
@@ -97,19 +115,19 @@ const SignUp: React.FC = () => {
           onChangeText={(text) => handleChange('password', text)}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>
-            {loading ? 'Creating...' : 'Create Account'}
-          </Text>
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Creating...' : 'Create Account'}</Text>
         </TouchableOpacity>
 
         <View style={styles.loginLink}>
-          <Text style={styles.loginText}>
-            If you already have an account, please
-          </Text>
-          <Link href="/login" style={styles.loginLinkText}>
-            Log In.
-          </Link>
+          <Text style={styles.loginText}>If you already have an account, please </Text>
+          <TouchableOpacity onPress={() => router.push('/login')}>
+            <Text style={styles.loginLinkText}>Log In.</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -158,6 +176,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
@@ -176,6 +197,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#146C94',
     fontSize: 16,
-    marginLeft: 4,
   },
 });
