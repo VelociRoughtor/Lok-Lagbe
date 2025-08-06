@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Link, router } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
@@ -14,12 +15,41 @@ export default function SignUpScreen() {
 
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+=======
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendEmailVerification,
+} from 'firebase/auth';
+import { auth } from './config/config'; // Your Firebase Auth instance
+import { router } from 'expo-router';
+
+const SignUp: React.FC = () => {
+  const [formData, setFormData] = useState({
+    name: '',
+    nid: '',
+    phone: '',
+    email: '',
+    password: '',
+  });
+>>>>>>> 046037c269597856046027e78e1e20ece87f26ca
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
     setErrorMsg('');
     setSuccessMsg('');
 
+<<<<<<< HEAD
     if (!fullName || !nid || !phone || !email || !password) {
       setErrorMsg('⚠️ Please fill in all required fields.');
       return;
@@ -27,12 +57,23 @@ export default function SignUpScreen() {
 
     if (password.length < 6) {
       setErrorMsg('⚠️ Password must be at least 6 characters long.');
+=======
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.nid || !formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+>>>>>>> 046037c269597856046027e78e1e20ece87f26ca
       return;
     }
 
     setLoading(true);
 
     try {
+<<<<<<< HEAD
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
@@ -61,6 +102,26 @@ export default function SignUpScreen() {
       let message = 'An unknown error occurred.';
       if (error instanceof Error) message = error.message;
       setErrorMsg(`❌ ${message}`);
+=======
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+      await updateProfile(userCredential.user, { displayName: formData.name });
+
+      // Send verification email
+      await sendEmailVerification(userCredential.user);
+
+      Alert.alert(
+        'Success',
+        'Account created! Please check your email to verify your account before logging in.'
+      );
+      router.replace('/login'); // Navigate to login page
+    } catch (error: any) {
+      console.error('Firebase signup error:', error);
+      Alert.alert('Sign Up Error', error.message);
+>>>>>>> 046037c269597856046027e78e1e20ece87f26ca
     } finally {
       setLoading(false);
     }
@@ -71,8 +132,25 @@ export default function SignUpScreen() {
       <Text style={styles.title}>Create Account</Text>
       <Text style={styles.subtitle}>Join us by filling in your details</Text>
 
+<<<<<<< HEAD
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
       {successMsg ? <Text style={styles.successText}>{successMsg}</Text> : null}
+=======
+        <TextInput
+          style={styles.input}
+          placeholder="Full Name"
+          value={formData.name}
+          onChangeText={(text) => handleChange('name', text)}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="NID No."
+          keyboardType="number-pad"
+          value={formData.nid}
+          onChangeText={(text) => handleChange('nid', text)}
+        />
+>>>>>>> 046037c269597856046027e78e1e20ece87f26ca
 
       <TextInput
         placeholder="Full Name"
@@ -100,6 +178,7 @@ export default function SignUpScreen() {
         keyboardType="phone-pad"
       />
 
+<<<<<<< HEAD
       <TextInput
         placeholder="Email"
         placeholderTextColor="#8b8686"
@@ -136,6 +215,24 @@ export default function SignUpScreen() {
         </Link>
       </Text>
     </View>
+=======
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Creating...' : 'Create Account'}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.loginLink}>
+          <Text style={styles.loginText}>If you already have an account, please </Text>
+          <TouchableOpacity onPress={() => router.push('/login')}>
+            <Text style={styles.loginLinkText}>Log In.</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+>>>>>>> 046037c269597856046027e78e1e20ece87f26ca
   );
 }
 
@@ -144,7 +241,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     justifyContent: 'center',
+<<<<<<< HEAD
     padding: 24,
+=======
+    padding: 16,
+  },
+  card: {
+    backgroundColor: '#D7D7D7',
+    padding: 24,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    elevation: 5,
+>>>>>>> 046037c269597856046027e78e1e20ece87f26ca
   },
   title: {
     fontSize: 30,
@@ -181,11 +290,15 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     backgroundColor: '#636060',
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
   buttonText: {
     color: '#eceefc',
     fontSize: 17,
     fontWeight: '600',
   },
+<<<<<<< HEAD
   linkText: {
     marginTop: 25,
     textAlign: 'center',
@@ -209,4 +322,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+=======
+  loginLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  loginText: {
+    color: 'black',
+    fontSize: 16,
+  },
+  loginLinkText: {
+    fontWeight: 'bold',
+    color: '#146C94',
+    fontSize: 16,
+  },
+>>>>>>> 046037c269597856046027e78e1e20ece87f26ca
 });

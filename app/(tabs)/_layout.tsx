@@ -25,10 +25,10 @@ export default function TabLayout() {
                 headerShown: false,
             })}
         >
-            <Tabs.Screen name="index" options={{ title: 'Home' }} />
-            <Tabs.Screen name="hire" options={{ title: 'Hire' }} />
-            <Tabs.Screen name="works" options={{ title: 'Works' }} />
-            <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+            <Tabs.Screen name="index" options={{ title: 'Home' , headerShown:false}} />
+            <Tabs.Screen name="hire" options={{ title: 'Hire', headerShown:false }} />
+            <Tabs.Screen name="works" options={{ title: 'Works', headerShown:false }} />
+            <Tabs.Screen name="profile" options={{ title: 'Profile', headerShown:false }} />
         </Tabs>
     );
 }
